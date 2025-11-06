@@ -1,0 +1,39 @@
+---
+- name: Day1 - Find total distance
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Read the input file
+      ansible.builtin.slurp: 
+        src: puzzleinput/input
+      register: input_file_content
+
+    - name: Parse the input into 2 sorted lists
+      ansible.builtin.set_fact:
+        group0: "{{ input_file_content.content | b64decode | regex_replace('\n$', '') | split('\n') | map('split', ' ') | map('first') | list | sort | map('int') }}"
+        group1: "{{ input_file_content.content | b64decode | regex_replace('\n$', '') | split('\n') | map('split', ' ') | map('last') | list | sort | map('int') }}"
+    
+    - name: Calculate distance
+      ansible.builtin.set_fact:
+        difference: "{{ group0 | zip(group1) | map('subtract') | list | map('abs') | sum}}"
+
+    - name: Show distance
+      ansible.builtin.debug:
+        msg: |
+          "Distance: {{ difference }}""
+
+    - name: Calculate similarity score 
+      set_fact:
+        simsco: >-
+          {%- set i= namespace( scored = 0) -%}
+          {%- for item in group0 -%}
+            {%- set count = group1 | select('equalto', item) | list | length -%}
+            {%- set i.scored = i.scored + (item | int * count) -%}
+          {%- endfor -%}
+          {{ i.scored | int }}" "
+
+
+    - name: Show distance
+      ansible.builtin.debug:
+        msg: |
+          "Similarity score: {{ simsco }} "

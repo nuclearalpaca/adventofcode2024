@@ -1,0 +1,83 @@
+---
+- name: Day6
+  hosts: localhost
+  gather_facts: false
+  vars:
+    input_file_content: "{{ lookup('file', 'puzzleinput/input') | split('\n') }}"
+    directions: [[-1, 0], [0, 1], [1, 0], [0, -1]]
+    guard_position: >-
+      {%- for row in range(input_file_content | length) -%}
+        {%- for col in range(input_file_content[row] | length) -%}
+          {%- if input_file_content[row][col] == '^' -%}
+            [{{ row }}, {{ col }}]
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endfor -%}
+    map_width: "{{ input_file_content[0] | length }}"
+    map_height: "{{ input_file_content | length }}"
+  tasks:
+    - name: Calculate visited positions
+      set_fact:
+        visited_positions: >-
+          {%- set i = namespace(pos=guard_position, dir=[-1, 0], visited=[guard_position], continue_loop=True, new_pos = []) -%}
+          {%- for _ in range(15000) if i.continue_loop -%}
+            {%- set i.new_pos = [i.pos[0] + i.dir[0], i.pos[1] + i.dir[1]] -%}
+            {%- if i.new_pos[0] < 0 or i.new_pos[0] >= map_height | int or i.new_pos[1] < 0 or i.new_pos[1] >= map_width | int -%}
+              {%- set i.continue_loop = False -%}
+            {%- elif input_file_content[i.new_pos[0]][i.new_pos[1]] == '#' -%}
+              {%- set i.dir = directions[(directions.index(i.dir) + 1) % 4] -%}
+            {%- else -%}
+              {%- set i.pos = i.new_pos -%}
+              {%- set i.visited = i.visited + [i.pos] -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ i.visited }}          
+
+    - name: Solution to 6.1
+      ansible.builtin.debug:
+        msg: "Number of distinct positions visited: {{  visited_positions | unique | length }} "
+
+#    - name: Calculate obstacles
+#      set_fact:
+#        obs_positions: >-
+#          {%- set i = namespace(pos=guard_position, dir=[-1, 0], visited=[], compare=[], continue_loop=True, new_pos = [], tryfilecontent = input_file_content, obsfound = []) -%}
+#          {%- for obs in visited_positions | unique -%}       
+#            {%- if obs != guard_position -%}                   
+#              {%- set i.visited = [guard_position] -%}
+#              {%- set i.pos = guard_position -%} 
+#              {%- set i.compare = [] -%}          
+#              {%- set i.tryfilecontent = input_file_content | map('list')  -%}
+#              {%- set i.tryfilecontent = i.tryfilecontent[:obs[0]] + [i.tryfilecontent[obs[0]][:obs[1]] + ['#'] + i.tryfilecontent[obs[0]][obs[1]+1:]] + i.tryfilecontent[obs[0]+1:] -%}
+#              {%- set i.continue_loop = True -%}
+#              {%- set i.dir = [-1, 0] -%}
+#              {%- for _ in range(5000) if i.continue_loop -%}
+#                {%- set i.new_pos = [i.pos[0] + i.dir[0], i.pos[1] + i.dir[1]] -%}
+#                {%- if i.new_pos[0] < 0 or i.new_pos[0] >= map_height | int or i.new_pos[1] < 0 or i.new_pos[1] >= map_width | int -%}
+#                  {%- set i.continue_loop = False -%}
+#                {%- elif i.tryfilecontent[i.new_pos[0]][i.new_pos[1]] == '#' -%}
+#                  {%- set i.dir = directions[(directions.index(i.dir) + 1) % 4] -%}
+#                {%- else -%}
+#                  {%- set i.visited = i.visited + [i.new_pos] -%}
+#                  {%- set temppos = [i.new_pos[0] + i.dir[0], i.new_pos[1] + i.dir[1]] -%}                
+#                  {%- if temppos == obs -%}
+#                    {%- if [i.new_pos, i.pos] == i.compare -%}
+#                      {%- set i.obsfound = i.obsfound + [obs] -%} 
+#                      {%- set i.continue_loop = False -%}                 
+#                    {%- elif i.compare == [] -%}
+#                      {%- set i.compare = [i.new_pos, i.pos] -%}
+#                    {%- endif -%}
+#                  {%- endif -%}
+#                  {%- set i.pos = i.new_pos -%}
+#                {%- endif -%}
+#              {%- endfor -%}   
+#        
+#            {%- endif -%}  
+#          {%- endfor -%}
+#          {{ i.obsfound }}
+
+# This use case with Jinja2 is too slow to be used... I had to decide to write a custom filter plugin to solve this problem.
+
+
+    - name: Solution to 6.2
+      ansible.builtin.debug:
+        msg: "{{ input_file_content | find_obstruction_positions(directions, guard_position, map_width | int, map_height | int, visited_positions | reject('equalto', guard_position) | list | unique) }}"

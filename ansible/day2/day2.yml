@@ -1,0 +1,76 @@
+---
+- name: Day2
+  hosts: localhost
+  gather_facts: false
+  vars:
+    input_file_content: "{{ lookup('file', 'puzzleinput/input') | split('\n') | map('split', ' ') | list }}"    
+  tasks:
+    - name: Count safe lines
+      ansible.builtin.set_fact:
+        safe: >-
+          {%- set i = namespace(safe2 = 0, increasing = True, decreasing = True, valid = True) -%}
+          {%- for item in input_file_content -%}
+            {%- set item = item | map('int') | list -%}
+            {%- set i.increasing = True -%}
+            {%- set i.decreasing = True -%}
+            {%- set i.valid = True -%}
+            {%- for j in range(1, item | length) -%}
+              {%- set diff = item[j] - item[j-1] -%}
+              {%- if diff == 0 or diff | abs > 3 -%}
+                {%- set i.valid = False -%}
+              {%- endif -%}
+              {%- if diff < 0 -%}
+                {%- set i.increasing = False -%}
+              {%- elif diff > 0 -%}
+                {%- set i.decreasing = False -%}
+              {%- endif -%}
+            {%- endfor -%}
+            {%- if i.valid and (i.increasing or i.decreasing) -%}
+              {%- set i.safe2 = i.safe2 + 1 -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ i.safe2 }}
+
+    - name: Result 2.1
+      ansible.builtin.debug:
+        msg: |
+          "2.1 safe lines: {{ safe }} "
+
+    - name: Count safe lines tolerated
+      ansible.builtin.set_fact:
+        safe2: >-
+          {%- set i = namespace(safe2 = 0, increasing = True, decreasing = True, valid = True, counter = 0) -%}
+          {%- for item in input_file_content -%}
+            {%- set item = item | map('int') | list -%}
+            {%- set i.counter = 0 -%}
+            {%- for k in range(item | length) -%}
+              {%- if i.counter == 0 -%}
+                {%- set temp_item = item[:k] + item[k+1:] -%}
+                {%- set i.increasing = True -%}
+                {%- set i.decreasing = True -%}
+                {%- set i.valid = True -%}              
+                {%- for j in range(1, temp_item | length) -%}
+                  {%- set diff = temp_item[j] - temp_item[j-1] -%}
+                  {%- if diff == 0 or diff | abs > 3 -%}
+                    {%- set i.valid = False -%}
+                  {%- endif -%}
+                  {%- if diff < 0 -%}
+                    {%- set i.increasing = False -%}
+                  {%- elif diff > 0 -%}
+                    {%- set i.decreasing = False -%}
+                  {%- endif -%}
+                {%- endfor -%}
+                {%- if i.valid and (i.increasing or i.decreasing) -%}
+                  {%- set i.safe2 = i.safe2 + 1 -%}
+                  {%- set i.counter =  1 -%}
+                {%- endif -%}
+              {%- endif -%}  
+            {%- endfor -%}
+
+          {%- endfor -%}
+          {{ i.safe2 }}
+
+    - name: Result 2.2
+      ansible.builtin.debug:
+        msg: |
+          "2.2 safe lines (tolerated): {{ safe2 }} "

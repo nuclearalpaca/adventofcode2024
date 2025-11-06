@@ -1,0 +1,46 @@
+---
+- name: Day3
+  hosts: localhost
+  gather_facts: false
+  vars:
+    input_file_content: "{{ lookup('file', 'puzzleinput/input') }}"    
+  tasks:
+    - name: Extract and sum valid mul instructions
+      ansible.builtin.set_fact:
+        result: >-
+          {%- set regex = 'mul\((\d+),(\d+)\)' -%}
+          {%- set matches = input_file_content | regex_findall(regex) -%}
+          {%- set i = namespace (total = 0) -%}
+          {%- for match in matches -%}
+            {%- set x = match[0] | int -%}
+            {%- set y = match[1] | int -%}
+            {%- set i.total = i.total + (x * y) -%}
+          {%- endfor -%}
+          {{ i.total }}
+
+    - name: Solution to 3.1
+      ansible.builtin.debug:
+        msg: "The sum of all valid mul instructions is: {{ result }}"
+
+    - name: Extract and sum valid mul instructions with conditions
+      ansible.builtin.set_fact:
+        result2: >-
+          {%- set regex = '(mul\((\d+),(\d+)\)|do\(\)|don\'t\(\))' -%}
+          {%- set matches = input_file_content | regex_findall(regex) -%}
+          {%- set i = namespace(total = 0, enabled = True) -%}
+          {%- for match in matches -%}
+            {%- if match[0].startswith('mul') and i.enabled -%}
+              {%- set x = match[1] | int -%}
+              {%- set y = match[2] | int -%}
+              {%- set i.total = i.total + (x * y) -%}
+            {%- elif match[0] == 'do()' -%}
+              {%- set i.enabled = True -%}
+            {%- elif match[0] == "don't()" -%}
+              {%- set i.enabled = False -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ i.total }}
+
+    - name: Solution to 3.2
+      ansible.builtin.debug:
+        msg: "The sum of all valid enabled mul instructions is: {{ result2 }}"

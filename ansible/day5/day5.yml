@@ -1,0 +1,112 @@
+---
+- name: Day5
+  hosts: localhost
+  gather_facts: false
+  vars:
+    input_file_content: "{{ lookup('file', 'puzzleinput/input') | split('\n') }}"
+  tasks:
+    - name: Parse input file
+      set_fact:
+        ordering_rules: "{{ input_file_content[:input_file_content.index('')]|map('split', '|')|map('map', 'int')|list }}"
+        updates: "{{ input_file_content[input_file_content.index('')+1:]|map('split', ',')|map('map', 'int')|list }}"
+
+    - name: Check if update is in correct order
+      set_fact:
+        correct_midpages: >-
+          {%- for update in updates -%}
+            {%- set i = namespace( correct = true) -%}
+            {%- for rule in ordering_rules -%}
+              {%- if rule[0] in update and rule[1] in update -%}
+                {%- if update.index(rule[0]) > update.index(rule[1]) -%}
+                  {%- set i.correct = false -%}
+                {%- endif -%}
+              {%- endif -%}
+            {%- endfor -%}
+            {%- if i.correct -%}
+              {{ update[(update|length // 2)] }},
+            {%- endif -%}
+          {%- endfor -%}
+
+    - name: Sum middle page numbers
+      set_fact:
+        result: "{{ correct_midpages | split(',') | map('int') | sum}}"
+
+    - name: Solution to 5.1
+      ansible.builtin.debug:
+        msg: "Summary of correct middle page numbers: {{ result }} "
+
+    - name: Check if update is in correct order
+      set_fact:
+        incorrect: >-
+          {%- for update in updates -%}
+            {%- set i = namespace( correct = true) -%}
+            {%- for rule in ordering_rules -%}
+              {%- if rule[0] in update and rule[1] in update -%}
+                {%- if update.index(rule[0]) > update.index(rule[1]) -%}
+                  {%- set i.correct = false -%}
+                {%- endif -%}
+              {%- endif -%}
+            {%- endfor -%}
+            {%- if not i.correct -%}
+              {{ update }},
+            {%- endif -%}
+          {%- endfor -%}
+
+
+    - name: Sort incorrect updates
+      set_fact:
+        sorted_incorrect_lines: "{{ ( incorrect | sort_updates(ordering_rules)) }}"
+
+    - name: Get middle elements of sorted incorrect updates
+      set_fact:
+        middle_elements: >-
+          {%- set i = namespace(middle = []) -%}
+          {%- for update in sorted_incorrect_lines -%}
+            {%- set i.middle = i.middle + [update[(update | length // 2)]] -%}
+          {%- endfor -%}
+          {{ i.middle }}
+
+
+    - name: Solution to 5.2
+      ansible.builtin.debug:
+        msg: "Summary of incorrect middle page numbers: {{ middle_elements | sum }} "
+
+
+    - name: Sort incorrect updates with pure Jinja
+      set_fact:
+        sorted_incorrect_lines_jinja: >-
+          {%- set i = namespace( sorted_updates = [], changed = True) -%}
+          {%- for update in incorrect -%}
+            {%- set i.changed = True -%}
+            {%- set update = update | list -%}
+            {%- for _ in range(100) if i.changed -%}
+              {%- set i.changed = False -%}
+              {%- for rule in ordering_rules -%}
+                {%- set x, y = rule[0], rule[1] -%}
+                {%- if x in update and y in update -%}
+                  {%- set ix, iy = update.index(x), update.index(y) -%}
+                  {%- if ix > iy -%}
+                    {%- set _ = update.pop(ix) -%}
+                    {%- set _ = update.insert(iy, x) -%}
+                    {%- set i.changed = True -%}
+                  {%- endif -%}
+                {%- endif -%}
+              {%- endfor -%}
+            {%- endfor -%}
+            {%- set i.sorted_updates = i.sorted_updates + [update] -%}
+          {%- endfor -%}
+          {{ i.sorted_updates }}
+
+    - name: Get middle elements of sorted incorrect updates with pure Jinja
+      set_fact:
+        middle_elementsj: >-
+          {%- set i = namespace(middle = []) -%}
+          {%- for update in sorted_incorrect_lines_jinja -%}
+            {%- set i.middle = i.middle + [update[(update | length // 2)]] -%}
+          {%- endfor -%}
+          {{ i.middle }}
+
+
+    - name: Solution to 5.2 pure jinja
+      ansible.builtin.debug:
+        msg: "Summary of incorrect middle page numbers: {{ middle_elementsj | map('int') | sum }} "
